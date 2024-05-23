@@ -3,15 +3,11 @@ export interface IMarkerNode<T = unknown> {
   readonly end: number;
   readonly children: IMarkerNode<T>[];
   data: T;
-
-  isOverlapping: (marker: MarkerNode<T>) => boolean;
-  addChildren: (...nodes: MarkerNode<T>[]) => void;
-  getOverlappingChildren: (node: MarkerNode<T>) => MarkerNode<T>[];
 }
-
 
 export class MarkerNode<T = unknown> implements IMarkerNode<T> {
   children: MarkerNode<T>[];
+  readonly _key: string;
 
   constructor(
     public start: number,
@@ -20,10 +16,19 @@ export class MarkerNode<T = unknown> implements IMarkerNode<T> {
     children: IMarkerNode<T>[] = [],
     protected parent: MarkerNode<T> | null = null,
   ) {
-    // todo: set key
+    this._key = (Math.random() + 1).toString(36).slice(2);
     this.children = children.map(MarkerNode.of);
   }
 
+  get key() {
+    return this._key;
+  }
+
+  /**
+   * Adds child nodes to the current marker node.
+   *
+   * @param nodes - The child nodes to be added.
+   */
   public addChildren(...nodes: MarkerNode<T>[]) {
     for (const newMarker of nodes) {
       // 1. newMarker doesn't overlap with any existing marker
@@ -55,7 +60,7 @@ export class MarkerNode<T = unknown> implements IMarkerNode<T> {
       // we break the newMarker for those overlapping marker
       overlappingMarkers = this.getOverlappingChildren(newMarker);
       let breakpoints = overlappingMarkers.flatMap((e) => [e.start, e.end]);
-      breakpoints = [...breakpoints, newMarker.start, newMarker.end].filter((i) => i >= newMarker.start && i < newMarker.end && i <= newMarker.end);
+      breakpoints = [...breakpoints, newMarker.start, newMarker.end].filter((i) => i >= newMarker.start && i <= newMarker.end);
       breakpoints = Array.from(new Set(breakpoints)).sort((a, b) => a - b);
 
       this.addChildren(...newMarker.split(...breakpoints))
@@ -88,6 +93,13 @@ export class MarkerNode<T = unknown> implements IMarkerNode<T> {
     );
   }
 
+  /**
+   * Check if a given point is within the range of this object.
+   *
+   * @param point The point to check.
+   * @protected
+   * @returns True if the point is within the range, false otherwise.
+   */
   protected containsPoint(point: number): boolean {
     return point >= this.start && point <= this.end;
   }
@@ -106,18 +118,16 @@ export class MarkerNode<T = unknown> implements IMarkerNode<T> {
   }
 
   /**
-   * Determines whether the given marker overlaps with the current marker.
+   * Calculates the size of overlap between this marker and the given marker.
    *
-   * @param marker - The marker to check for overlapping.
-   * @return True if the markers overlap, false otherwise.
+   * @param marker - The marker to compare with.
+   * @returns The size of overlap (number of elements).
    */
-  isOverlapping(marker: MarkerNode<T>): boolean {
-    return (
-      this.contains(marker.start) ||
-      this.contains(marker.end) ||
-      marker.contains(this.start) ||
-      marker.contains(this.end)
-    );
+  getOverlapSize(marker: MarkerNode<T>) {
+    const overlapStart = Math.max(this.start, marker.start);
+    const overlapEnd = Math.min(this.end, marker.end);
+
+    return overlapEnd - overlapStart;
   }
 
   /**
@@ -127,7 +137,7 @@ export class MarkerNode<T = unknown> implements IMarkerNode<T> {
    * @return An array containing the child nodes that overlap with the given marker.
    */
   getOverlappingChildren(marker: MarkerNode<T>) {
-    return this.children.filter((node) => node.isOverlapping(marker));
+    return this.children.filter((node) => node.getOverlapSize(marker) > 0);
   }
 
   /**
@@ -167,7 +177,7 @@ export class MarkerNode<T = unknown> implements IMarkerNode<T> {
       const newMarker = new MarkerNode(start, end, this.data, [], this.parent);
 
       const newChildren = this.children
-        .filter((c) => newMarker.isOverlapping(c))
+        .filter((c) => newMarker.getOverlapSize(c) > 0 )
         .flatMap((c) => {
           if (newMarker.contains(c)) {
             return [c];
@@ -184,6 +194,11 @@ export class MarkerNode<T = unknown> implements IMarkerNode<T> {
     return newMarkers;
   }
 
+  /**
+   * Sets the parent node for the current MarkerNode.
+   *
+   * @param node - The parent node to be set.
+   */
   setParent(node: MarkerNode<T>) {
     this.parent = node;
   }
