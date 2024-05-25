@@ -6,7 +6,7 @@ interface Props<T extends BaseDocument = BaseDocument> {
   doc: T;
 }
 
-export function TextAnnotator<T extends BaseDocument = BaseDocument>({doc}: Props<T>) {
+export function TextHighlighter<T extends BaseDocument = BaseDocument>({doc}: Props<T>) {
   const [, rerender] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
 

@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {PlainTextDocument} from "./core/Documents.ts";
-import {TextAnnotator} from "./components/TextAnnotator.tsx";
+import {TextHighlighter} from "./components/TextHighlighter.tsx";
 
 
 function App() {
@@ -18,7 +18,7 @@ function App() {
 
   return (
     <div className="annotator">
-      {textDoc && <TextAnnotator doc={textDoc}/>}
+      {textDoc && <TextHighlighter doc={textDoc}/>}
     </div>
   )
 }
