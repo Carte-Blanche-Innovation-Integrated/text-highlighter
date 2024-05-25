@@ -9,6 +9,32 @@ export class MarkerNode<T = unknown> implements IMarkerNode<T> {
   children: MarkerNode<T>[];
   readonly _key: string;
 
+  /**
+   * Determines if two marker nodes are equal based on their start, end, and data properties.
+   *
+   * @param m1 - The first marker node.
+   * @param m2 - The second marker node.
+   *
+   * @return Returns true if the marker nodes are equal, otherwise false.
+   */
+  static is(m1: IMarkerNode, m2: IMarkerNode) {
+    return m1.start === m2.start && m1.end === m2.end && Object.is(m1, m2);
+  }
+
+  /**
+   * Type lift IMarkerNode to MarkerElement
+   */
+  static of<T>(m: IMarkerNode<T>): MarkerNode<T> {
+    if (m instanceof MarkerNode) {
+      return m as MarkerNode<T>;
+    }
+    return new MarkerNode<T>(
+      m.start, m.end,
+      (m as IMarkerNode<T>).data,
+      m.children as IMarkerNode<T>[],
+    );
+  }
+
   constructor(
     public start: number,
     public end: number,
@@ -29,7 +55,7 @@ export class MarkerNode<T = unknown> implements IMarkerNode<T> {
    *
    * @param nodes - The child nodes to be added.
    */
-  public addChildren(...nodes: MarkerNode<T>[]) {
+  addChildren(...nodes: MarkerNode<T>[]) {
     for (const newMarker of nodes) {
       // 1. newMarker doesn't overlap with any existing marker
       let overlappingMarkers = this.getOverlappingChildren(newMarker);
@@ -65,43 +91,6 @@ export class MarkerNode<T = unknown> implements IMarkerNode<T> {
 
       this.addChildren(...newMarker.split(...breakpoints))
     }
-  }
-
-  /**
-   * Determines if two marker nodes are equal based on their start, end, and data properties.
-   *
-   * @param m1 - The first marker node.
-   * @param m2 - The second marker node.
-   *
-   * @return Returns true if the marker nodes are equal, otherwise false.
-   */
-  static is(m1: IMarkerNode, m2: IMarkerNode) {
-    return m1.start === m2.start && m1.end === m2.end && Object.is(m1, m2);
-  }
-
-  /**
-   * Type lift IMarkerNode to MarkerElement
-   */
-  static of<T>(m: IMarkerNode<T>): MarkerNode<T> {
-    if (m instanceof MarkerNode) {
-      return m as MarkerNode<T>;
-    }
-    return new MarkerNode<T>(
-      m.start, m.end,
-      (m as IMarkerNode<T>).data,
-      m.children as IMarkerNode<T>[],
-    );
-  }
-
-  /**
-   * Check if a given point is within the range of this object.
-   *
-   * @param point The point to check.
-   * @protected
-   * @returns True if the point is within the range, false otherwise.
-   */
-  protected containsPoint(point: number): boolean {
-    return point >= this.start && point <= this.end;
   }
 
   /**
@@ -199,7 +188,18 @@ export class MarkerNode<T = unknown> implements IMarkerNode<T> {
    *
    * @param node - The parent node to be set.
    */
-  setParent(node: MarkerNode<T>) {
+  protected setParent(node: MarkerNode<T>) {
     this.parent = node;
+  }
+
+  /**
+   * Check if a given point is within the range of this object.
+   *
+   * @param point The point to check.
+   * @protected
+   * @returns True if the point is within the range, false otherwise.
+   */
+  protected containsPoint(point: number): boolean {
+    return point >= this.start && point <= this.end;
   }
 }
