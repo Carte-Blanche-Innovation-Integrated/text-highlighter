@@ -10,6 +10,8 @@ export function TextAnnotator<T extends BaseDocument = BaseDocument>({doc}: Prop
   const [, rerender] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
 
+  console.log("rootRef", doc);
+
   function getDocumentOffset(node?: Node | null) {
     if (!node || !rootRef.current?.contains(node)) {
       return undefined;
@@ -42,7 +44,7 @@ export function TextAnnotator<T extends BaseDocument = BaseDocument>({doc}: Prop
       const start = startOffset + range.startOffset;
       const end = endOffset + range.endOffset;
 
-      doc.tree.addChildren(new MarkerNode<TagNodeData>(start, end, {tag: 'span'}));
+      doc.tree.addChildren(new MarkerNode<TagNodeData>(start, end, {tag: 'b'}));
       rerender(Math.random());
     }
 
@@ -69,7 +71,7 @@ function Marker<
 
   let nodeOffset = node.children.flatMap((e) => [e.start, e.end]);
   nodeOffset = [node.start, ...nodeOffset, node.end];
-  nodeOffset = Array.from(new Set(nodeOffset));
+  nodeOffset = Array.from(new Set(nodeOffset)).sort((a, b) => a - b);
 
   const children: ReactNode[] = [];
 
@@ -77,11 +79,25 @@ function Marker<
     const childNode = node.children.find((e) => e.start === nodeOffset[i] && e.end === nodeOffset[i + 1]);
     if (childNode) {
       children.push(<Marker key={childNode.key} doc={doc} node={childNode}/>)
-    } else {
-      const text = doc.getText({start: nodeOffset[i], end: nodeOffset[i + 1]})
-      if (text)
-        children.push(<Fragment key={`${nodeOffset[i]}-${nodeOffset[i + 1]}`}>{text}</Fragment>);
+      continue;
     }
+
+    const text = doc.getText({start: nodeOffset[i], end: nodeOffset[i + 1]})
+
+    if (text.trim() && nodeOffset.length > 2) {
+      children.push(
+        <span
+          key={`${nodeOffset[i]}-${nodeOffset[i + 1]}`}
+          data-offset={nodeOffset[i]}
+          data-start={nodeOffset[i]}
+          data-end={nodeOffset[i + 1]}
+        >
+          {text}
+        </span>
+      );
+      continue;
+    }
+    children.push(<Fragment key={`${nodeOffset[i]}-${nodeOffset[i + 1]}`}>{text}</Fragment>);
   }
 
   return (
