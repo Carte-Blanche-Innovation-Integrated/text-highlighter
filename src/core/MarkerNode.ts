@@ -2,6 +2,7 @@ export interface IMarkerNode<T = unknown> {
   readonly start: number;
   readonly end: number;
   readonly children: IMarkerNode<T>[];
+  readonly size: number;
   data: T;
 }
 
@@ -48,6 +49,10 @@ export class MarkerNode<T = unknown> implements IMarkerNode<T> {
 
   get key() {
     return this._key;
+  }
+
+  get size() {
+    return this.end - this.start;
   }
 
   /**

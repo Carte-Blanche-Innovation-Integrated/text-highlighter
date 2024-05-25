@@ -9,7 +9,7 @@ export abstract class BaseDocument {
   abstract text: string;
   abstract tree: MarkerNode<TagNodeData>;
 
-  getText({start, end}: {start: number, end: number}) {
+  getText({start, end}: { start: number, end: number }) {
     return this.text.slice(start, end);
   }
 }
@@ -49,5 +49,58 @@ export class PlainTextDocument extends BaseDocument {
       {tag: 'article'},
       paragraphs,
     );
+  }
+}
+
+export class HTMLDocument extends BaseDocument {
+  public tree: MarkerNode<TagNodeData>;
+  public text = '';
+
+  constructor(node: Node) {
+    super();
+    this.tree = this.buildTree(node);
+  }
+
+  private buildTree(node: Node) {
+    const start = this.text.length;
+    let end = start;
+    const markers: MarkerNode<TagNodeData>[] = [];
+
+    for (const child of node.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE || (
+        child.nodeType === Node.ELEMENT_NODE
+        && child.childNodes.length === 1
+        && child.childNodes[0].nodeType === Node.TEXT_NODE
+      )) {
+        const childText = child.textContent
+          ?.replace(/\n+\s+/g, '\n')
+          .replace(/^\s+/, ' ')
+          .replace(/\s+$/, ' ') ?? '';
+
+        const startIndex = this.text.length;
+        const endIndex = startIndex + childText.length;
+        end += childText.length
+        this.text += childText;
+
+        const tagName = child.nodeType === Node.TEXT_NODE
+          ? 'span'
+          : (child as HTMLElement).tagName?.toLowerCase();
+        markers.push(new MarkerNode<TagNodeData>(startIndex, endIndex, {
+          tag: (tagName ?? 'span') as TagNodeData['tag'],
+        }));
+        continue;
+      }
+
+      if (child.nodeType === Node.ELEMENT_NODE || child.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+        const marker = this.buildTree(child);
+        markers.push(marker);
+        end += marker.size;
+      }
+    }
+
+    const tagName = (node as HTMLElement).tagName.toLowerCase() as TagNodeData['tag']
+    return new MarkerNode<TagNodeData>(start, end, {
+      tag: tagName === 'body' ? 'article' : tagName,
+    }, markers);
   }
 }
