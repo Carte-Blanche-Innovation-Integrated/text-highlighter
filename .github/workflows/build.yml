@@ -34,10 +34,13 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm i
+      - name: Set repo_name
+        id: repo-name
+        run: echo "GITHUB_ACTIONS_BASE=/$REPO_NAME" >> "$GITHUB_OUTPUT"
       - name: Build
         run: pnpm run build
         env:
-          GITHUB_ACTIONS_BASE: $REPO_NAME
+          GITHUB_ACTIONS_BASE: ${{ steps.repo-name.outputs.GITHUB_ACTIONS_BASE }}
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Upload artifact
