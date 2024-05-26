@@ -1,20 +1,8 @@
-html {
-
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 body {
     margin-inline: 0;
     margin-block: 60px;
 }
-
-.annotator {
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    margin-inline: auto;
-    padding: 10px;
-    max-width: 80ch;
-}
-
-/*.annotator p span {*/
-/*    text-decoration: underline;*/
-/*}*/

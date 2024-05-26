@@ -3,6 +3,7 @@ import type {JSX} from "react";
 
 export interface TagNodeData {
   tag: keyof JSX.IntrinsicElements;
+  kind?: 'annotation',
 }
 
 export abstract class BaseDocument {

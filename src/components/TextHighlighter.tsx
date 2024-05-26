@@ -1,6 +1,7 @@
-import {ComponentProps, Fragment, type JSX, ReactNode, useRef, useState} from "react";
+import {ComponentProps, CSSProperties, Fragment, type JSX, ReactNode, useRef, useState} from "react";
 import {BaseDocument, TagNodeData} from "../core/Documents.ts";
 import {MarkerNode} from "../core/MarkerNode.ts";
+import './styles.css';
 
 interface Props<T extends BaseDocument = BaseDocument> {
   doc: T;
@@ -9,8 +10,6 @@ interface Props<T extends BaseDocument = BaseDocument> {
 export function TextHighlighter<T extends BaseDocument = BaseDocument>({doc}: Props<T>) {
   const [, rerender] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
-
-  console.log("rootRef", doc);
 
   function getDocumentOffset(node?: Node | null) {
     if (!node || !rootRef.current?.contains(node)) {
@@ -44,7 +43,7 @@ export function TextHighlighter<T extends BaseDocument = BaseDocument>({doc}: Pr
       const start = startOffset + range.startOffset;
       const end = endOffset + range.endOffset;
 
-      doc.tree.addChildren(new MarkerNode<TagNodeData>(start, end, {tag: 'b'}));
+      doc.tree.addChildren(new MarkerNode<TagNodeData>(start, end, {tag: 'span', kind: 'annotation'}));
       rerender(Math.random());
     }
 
@@ -52,22 +51,25 @@ export function TextHighlighter<T extends BaseDocument = BaseDocument>({doc}: Pr
   }
 
   return (
-    <div ref={rootRef} onPointerUp={handlePointerUp}>
+    <div className="prose max-w-none border border-gray-300 rounded-lg p-4" ref={rootRef} onPointerUp={handlePointerUp}>
       <Marker node={doc.tree} doc={doc}/>
     </div>
   );
 }
 
 type MarkerProps<T extends BaseDocument, El extends keyof JSX.IntrinsicElements> = {
-  node: MarkerNode<TagNodeData>, doc: T
+  node: MarkerNode<TagNodeData>,
+  doc: T,
+  annotationLevel?: number,
 } & ComponentProps<El>;
 
 
 function Marker<
   El extends keyof JSX.IntrinsicElements,
   Doc extends BaseDocument = BaseDocument
->({node, doc, ...restProps}: MarkerProps<Doc, El>) {
-  const Element = node.data.tag ?? 'span';
+>({node, doc, annotationLevel = 0, ...restProps}: MarkerProps<Doc, El>) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Element = (node.data.tag ?? 'span') as any;
 
   let nodeOffset = node.children.flatMap((e) => [e.start, e.end]);
   nodeOffset = [node.start, ...nodeOffset, node.end];
@@ -78,7 +80,14 @@ function Marker<
   for (let i = 0; i < (nodeOffset.length - 1); i++) {
     const childNode = node.children.find((e) => e.start === nodeOffset[i] && e.end === nodeOffset[i + 1]);
     if (childNode) {
-      children.push(<Marker key={childNode.key} doc={doc} node={childNode}/>)
+      children.push(
+        <Marker
+          key={childNode.key}
+          annotationLevel={node.data.kind === 'annotation' ? annotationLevel + 1 : annotationLevel}
+          doc={doc}
+          node={childNode}
+        />
+      )
       continue;
     }
 
@@ -101,8 +110,13 @@ function Marker<
   }
 
   return (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    <Element data-offset={node.start} data-start={node.start} data-end={node.end} {...(restProps as any)}>
+    <Element
+      data-offset={node.start}
+      style={{'--level': annotationLevel} as CSSProperties}
+      data-kind={node.data.kind}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      {...(restProps as any)}
+    >
       {...children}
     </Element>
   )
