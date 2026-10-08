@@ -5,6 +5,8 @@ import {MarkerNode} from './MarkerNode.ts';
 export interface TagNodeData {
   tag: keyof JSX.IntrinsicElements;
   kind?: 'annotation';
+  /** Shared by all fragments of an annotation that got split by overlapping markers */
+  id?: string;
 }
 
 export abstract class BaseDocument {
@@ -13,6 +15,22 @@ export abstract class BaseDocument {
 
   getText({start, end}: {start: number; end: number}) {
     return this.text.slice(start, end);
+  }
+
+  /**
+   * Trims surrounding whitespace from the range, then expands it outwards so that
+   * it doesn't start or end in the middle of a word.
+   */
+  snapToWordBoundary({start, end}: {start: number; end: number}) {
+    const isWordChar = (i: number) => /[\p{L}\p{N}_'’]/u.test(this.text[i] ?? '');
+
+    while (start < end && /\s/.test(this.text[start])) start++;
+    while (end > start && /\s/.test(this.text[end - 1])) end--;
+
+    while (start > 0 && isWordChar(start - 1) && isWordChar(start)) start--;
+    while (end < this.text.length && isWordChar(end - 1) && isWordChar(end)) end++;
+
+    return {start, end};
   }
 }
 

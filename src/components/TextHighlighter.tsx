@@ -1,4 +1,13 @@
-import {CSSProperties, ComponentProps, Fragment, type JSX, ReactNode, useRef, useState} from 'react';
+import {
+  CSSProperties,
+  ComponentProps,
+  Fragment,
+  type JSX,
+  PointerEvent,
+  ReactNode,
+  useRef,
+  useState,
+} from 'react';
 
 import {BaseDocument, TagNodeData} from '../core/Documents.ts';
 import {MarkerNode} from '../core/MarkerNode.ts';
@@ -10,6 +19,7 @@ interface Props<T extends BaseDocument = BaseDocument> {
 
 export function TextHighlighter<T extends BaseDocument = BaseDocument>({doc}: Props<T>) {
   const [, rerender] = useState(0);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   function getDocumentOffset(node?: Node | null) {
@@ -41,14 +51,26 @@ export function TextHighlighter<T extends BaseDocument = BaseDocument>({doc}: Pr
         continue;
       }
 
-      const start = startOffset + range.startOffset;
-      const end = endOffset + range.endOffset;
+      const {start, end} = doc.snapToWordBoundary({
+        start: startOffset + range.startOffset,
+        end: endOffset + range.endOffset,
+      });
+      if (start >= end) {
+        continue;
+      }
 
-      doc.tree.addChildren(new MarkerNode<TagNodeData>(start, end, {tag: 'span', kind: 'annotation'}));
+      const id = (Math.random() + 1).toString(36).slice(2);
+      doc.tree.addChildren(new MarkerNode<TagNodeData>(start, end, {tag: 'span', kind: 'annotation', id}));
       rerender(Math.random());
     }
 
     selection?.empty();
+  }
+
+  function handlePointerOver(e: PointerEvent<HTMLDivElement>) {
+    // closest() picks the innermost annotation under the pointer
+    const annotation = (e.target as Element).closest('[data-kind="annotation"]');
+    setHoveredId(annotation?.getAttribute('data-annotation-id') ?? null);
   }
 
   return (
@@ -56,10 +78,13 @@ export function TextHighlighter<T extends BaseDocument = BaseDocument>({doc}: Pr
       className="prose max-w-none rounded-lg border border-gray-300 p-4"
       ref={rootRef}
       onPointerUp={handlePointerUp}
+      onPointerOver={handlePointerOver}
+      onPointerLeave={() => setHoveredId(null)}
     >
       <Marker
         node={doc.tree}
         doc={doc}
+        hoveredId={hoveredId}
       />
     </div>
   );
@@ -69,12 +94,14 @@ type MarkerProps<T extends BaseDocument, El extends keyof JSX.IntrinsicElements>
   node: MarkerNode<TagNodeData>;
   doc: T;
   annotationLevel?: number;
+  hoveredId?: string | null;
 } & ComponentProps<El>;
 
 function Marker<El extends keyof JSX.IntrinsicElements, Doc extends BaseDocument = BaseDocument>({
   node,
   doc,
   annotationLevel = 0,
+  hoveredId,
   ...restProps
 }: MarkerProps<Doc, El>) {
   const Element = node.data.tag ?? 'span';
@@ -94,6 +121,7 @@ function Marker<El extends keyof JSX.IntrinsicElements, Doc extends BaseDocument
           annotationLevel={node.data.kind === 'annotation' ? annotationLevel + 1 : annotationLevel}
           doc={doc}
           node={childNode}
+          hoveredId={hoveredId}
         />
       );
       continue;
@@ -122,6 +150,8 @@ function Marker<El extends keyof JSX.IntrinsicElements, Doc extends BaseDocument
       data-offset={node.start}
       style={{'--level': annotationLevel} as CSSProperties}
       data-kind={node.data.kind}
+      data-annotation-id={node.data.id}
+      data-hovered={node.data.id !== undefined && node.data.id === hoveredId ? '' : undefined}
       {...(restProps as any)}
     >
       {...children}
